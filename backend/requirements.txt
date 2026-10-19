@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncpg
+alembic
+pydantic
+pydantic-settings
+PyJWT
+google-auth
+httpx
+APScheduler
+pytest
+pytest-asyncio

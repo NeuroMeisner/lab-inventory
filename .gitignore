@@ -1,0 +1,42 @@
+# ===== СЕКРЕТЫ (никогда не коммитить) =====
+.env
+.env.local
+.env.production
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# ===== Node / PWA =====
+node_modules/
+dist/
+*.tsbuildinfo
+
+# ===== Сертификаты и приватные ключи =====
+*.pem
+*.key
+*.crt
+pwa/certs/
+
+# ===== Логи и временные файлы =====
+*.log
+npm-debug.log*
+
+# ===== Docker =====
+docker-compose.override.yml
+
+# ===== Бинарники (например, скачанный туннель) =====
+cloudflared-windows-amd64.exe
+cloudflared
+
+# ===== ОС и редакторы =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

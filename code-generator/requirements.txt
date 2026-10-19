@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pillow
+pylibdmtx
+qrcode
+brother_ql
+pydantic-settings
+setuptools
+pytest
+httpx
