@@ -90,7 +90,6 @@ services:
         VITE_CODE_GENERATOR_URL: /codegen
         VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
         VITE_DEV_MODE: ${DEV_MODE:-false}
-        VITE_INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-change-me-internal-secret}
         LAN_IP: ${SERVER_LAN_IP:-127.0.0.1}
     restart: unless-stopped
     depends_on:
