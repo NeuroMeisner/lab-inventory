@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Alert, Box, Button, Dialog, DialogContent, DialogTitle, Stack,
+  Alert, Box, Button, Dialog, DialogContent, DialogTitle, Divider, Stack,
   ToggleButton, ToggleButtonGroup, Typography,
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
@@ -33,7 +33,7 @@ export default function ScanPage() {
     }
     const ref = parseDatamatrix(text)
     if (!ref.packageId) {
-      setMessage('❌ Code not recognized as a package')
+      setMessage('Code not recognized as a package')
       restartScanner()
       return
     }
@@ -42,7 +42,7 @@ export default function ScanPage() {
       if (pendingLocation) setMovePkg(data)
       else setSheetPkg(data)
     } catch (err) {
-      setMessage(`❌ ${errorDetail(err)}`)
+      setMessage(errorDetail(err))
       restartScanner()
     }
   }
@@ -51,26 +51,31 @@ export default function ScanPage() {
     if (!movePkg || !pendingLocation) return
     try {
       await api.put(`/packages/${movePkg.id}/location`, { location: pendingLocation, zone })
-      setMessage(`✅ ${movePkg.display_code} → ${pendingLocation}. Scan the next package.`)
+      setMessage(`${movePkg.display_code} → ${pendingLocation}. Scan the next package.`)
       setMovePkg(null)
       restartScanner()
     } catch (err) {
-      setMessage(`❌ ${errorDetail(err)}`)
+      setMessage(errorDetail(err))
     }
+  }
+
+  const closeSheet = () => {
+    setSheetPkg(null)
+    restartScanner()
   }
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h5" fontWeight={700}>📷 Scanner</Typography>
+      <Typography variant="h5">Scanner</Typography>
 
       {pendingLocation && (
         <Alert
           severity="info"
-          action={<Button color="inherit" size="small" onClick={() => setPendingLocation(null)}>Exit</Button>}
+          action={<Button color="inherit" size="large" onClick={() => setPendingLocation(null)}>Exit</Button>}
         >
           Placement mode: scanned packages will be placed at <b>{pendingLocation}</b>.
           <Box sx={{ mt: 1 }}>
-            <ToggleButtonGroup exclusive size="small" value={zone} onChange={(_, v) => v && setZone(v)}>
+            <ToggleButtonGroup exclusive value={zone} onChange={(_, v) => v && setZone(v)}>
               <ToggleButton value="storage">Storage</ToggleButton>
               <ToggleButton value="in_use">In use</ToggleButton>
             </ToggleButtonGroup>
@@ -82,43 +87,65 @@ export default function ScanPage() {
         key={scanKey}
         hint={pendingLocation ? `Scan package → ${pendingLocation}` : 'Scan a package or a location QR'}
         onResult={onResult}
+        onCancel={pendingLocation ? () => setPendingLocation(null) : undefined}
       />
 
-      {message && <Alert severity={message.startsWith('❌') ? 'error' : 'success'}>{message}</Alert>}
+      {message && <Alert severity={message.startsWith('❌') ? 'error' : 'success'} onClose={() => setMessage(null)}>{message}</Alert>}
 
-      {/* Меню действий для упаковки */}
-      <Dialog open={!!sheetPkg} onClose={() => { setSheetPkg(null); restartScanner() }} fullWidth>
+      {/* Карточка упаковки после скана: Write off — главное действие */}
+      <Dialog open={!!sheetPkg} onClose={closeSheet} fullWidth maxWidth="sm">
         {sheetPkg && (
           <>
-            <DialogTitle>
-              {sheetPkg.display_code} — {sheetPkg.nomenclature_name}
+            <DialogTitle sx={{ pb: 0.5 }}>
+              {sheetPkg.display_code}
+              <Typography variant="body2" color="text.secondary" component="div">
+                {sheetPkg.nomenclature_name}
+              </Typography>
             </DialogTitle>
             <DialogContent>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {sheetPkg.current_amount ?? '—'} {sheetPkg.unit ?? ''} · {sheetPkg.location ?? 'not placed'} ·{' '}
-                {sheetPkg.zone === 'storage' ? 'Storage' : 'In use'}
-              </Typography>
+              <Stack spacing={1.5} sx={{ mb: 2 }}>
+                <Typography variant="body1">
+                  <b>{sheetPkg.current_amount ?? '—'} {sheetPkg.unit ?? ''}</b>
+                  {sheetPkg.nominal_amount != null ? ` / ${sheetPkg.nominal_amount} ${sheetPkg.unit ?? ''}` : ''}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {sheetPkg.location ?? 'not placed'} · {sheetPkg.zone === 'storage' ? 'Storage' : 'In use'}
+                  {sheetPkg.grant_code ? ` · ${sheetPkg.grant_code}` : ''}
+                </Typography>
+              </Stack>
+
+              <Stack spacing={1.5}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  onClick={() => navigate(`/package/${sheetPkg.id}?action=write-off`)}
+                >
+                  Write off now
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="large"
+                  fullWidth
+                  onClick={() => navigate(`/write-off-batch?pkg=${sheetPkg.id}`)}
+                >
+                  Add to mass write-off{sessionCount > 0 ? ` (session: ${sessionCount})` : ''}
+                </Button>
+              </Stack>
+
+              <Divider sx={{ my: 2 }} />
+
               <Stack spacing={1}>
-                <Button variant="contained" size="large"
-                        onClick={() => navigate(`/write-off-batch?pkg=${sheetPkg.id}`)}>
-                  🧾 Add to mass write-off{sessionCount > 0 ? ` (session: ${sessionCount})` : ''}
-                </Button>
-                <Button variant="outlined" size="large"
-                        onClick={() => navigate(`/package/${sheetPkg.id}?action=write-off`)}>
-                  📝 Write off now
-                </Button>
                 {sheetPkg.opened_at == null && (
-                  <Button variant="outlined" size="large"
-                          onClick={() => navigate(`/package/${sheetPkg.id}?action=open`)}>
-                    📦 Open package
+                  <Button size="large" fullWidth onClick={() => navigate(`/package/${sheetPkg.id}?action=open`)}>
+                    Open package
                   </Button>
                 )}
-                <Button variant="outlined" size="large"
-                        onClick={() => navigate(`/package/${sheetPkg.id}?action=move`)}>
-                  📍 Move to another location
+                <Button size="large" fullWidth onClick={() => navigate(`/package/${sheetPkg.id}?action=move`)}>
+                  Move to another location
                 </Button>
-                <Button size="large" onClick={() => navigate(`/package/${sheetPkg.id}?action=details`)}>
-                  ℹ️ Details
+                <Button size="large" fullWidth onClick={() => navigate(`/package/${sheetPkg.id}?action=details`)}>
+                  Details
                 </Button>
               </Stack>
             </DialogContent>
@@ -127,7 +154,7 @@ export default function ScanPage() {
       </Dialog>
 
       {/* Подтверждение перемещения */}
-      <Dialog open={!!movePkg} onClose={() => { setMovePkg(null); restartScanner() }} fullWidth>
+      <Dialog open={!!movePkg} onClose={() => { setMovePkg(null); restartScanner() }} fullWidth maxWidth="sm">
         {movePkg && pendingLocation && (
           <>
             <DialogTitle>
@@ -137,14 +164,13 @@ export default function ScanPage() {
               <Typography sx={{ mb: 2 }}>
                 <b>{movePkg.location ?? '(not placed)'}</b> → <b>{pendingLocation}</b>
               </Typography>
-              <ToggleButtonGroup exclusive size="small" value={zone}
-                                 onChange={(_, v) => v && setZone(v)} sx={{ mb: 2 }}>
+              <ToggleButtonGroup exclusive value={zone} onChange={(_, v) => v && setZone(v)} sx={{ mb: 2 }}>
                 <ToggleButton value="storage">Storage</ToggleButton>
                 <ToggleButton value="in_use">In use</ToggleButton>
               </ToggleButtonGroup>
               <Stack direction="row" spacing={1}>
-                <Button variant="contained" onClick={confirmMove}>Confirm</Button>
-                <Button onClick={() => { setMovePkg(null); restartScanner() }}>Skip</Button>
+                <Button variant="contained" size="large" sx={{ flex: 1 }} onClick={confirmMove}>Confirm</Button>
+                <Button size="large" onClick={() => { setMovePkg(null); restartScanner() }}>Skip</Button>
               </Stack>
             </DialogContent>
           </>

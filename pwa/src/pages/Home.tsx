@@ -31,22 +31,26 @@ export default function Home() {
   return (
     <Stack spacing={2.5}>
       <Box>
-        <Typography variant="h5" fontWeight={800}>Hello, {firstName}! 👋</Typography>
+        <Typography variant="h5">Hello, {firstName}</Typography>
         <Typography variant="body2" color="text.secondary">
           {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
         </Typography>
       </Box>
 
       {!user?.accounts_linked && (
-        <Alert severity="info" action={<Button color="inherit" size="small" onClick={() => navigate('/link-telegram')}>Link</Button>}>
+        <Alert severity="info" action={<Button color="inherit" size="large" onClick={() => navigate('/link-telegram')}>Link</Button>}>
           Link your Telegram account to get notifications and use the bot.
         </Alert>
       )}
 
       {sessionCount > 0 && (
-        <Paper sx={{ p: 1.5, bgcolor: '#e8f5e9', cursor: 'pointer', borderRadius: 3 }}
-               onClick={() => navigate('/write-off-batch')}>
-          <Typography fontWeight={700}>🧾 Mass session in progress: {sessionCount} item(s) — tap to continue</Typography>
+        <Paper
+          sx={{ p: 2, bgcolor: 'success.light', color: 'success.contrastText', cursor: 'pointer', borderRadius: 3 }}
+          onClick={() => navigate('/write-off-batch')}
+        >
+          <Typography fontWeight={700}>
+            Mass session in progress: {sessionCount} item{sessionCount === 1 ? '' : 's'} — tap to continue
+          </Typography>
         </Paper>
       )}
 
@@ -57,28 +61,39 @@ export default function Home() {
               onClick={() => navigate(t.to)}
               elevation={0}
               sx={{
-                position: 'relative', p: 2.5, borderRadius: 4, textAlign: 'center', cursor: 'pointer',
-                border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper',
+                position: 'relative',
+                minHeight: 132,
+                p: 2,
+                borderRadius: 4,
+                textAlign: 'center',
+                cursor: 'pointer',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
                 transition: 'transform 0.12s ease, box-shadow 0.12s ease',
                 '&:hover': { transform: 'translateY(-3px)', boxShadow: 5 },
                 '&:active': { transform: 'scale(0.97)' },
               }}
             >
               {'badge' in t && t.badge ? (
-                <Chip size="small" color="secondary" label={t.badge}
-                      sx={{ position: 'absolute', top: 10, right: 10, fontWeight: 700 }} />
+                <Chip
+                  size="small"
+                  color="secondary"
+                  label={t.badge}
+                  sx={{ position: 'absolute', top: 10, right: 10, fontWeight: 700 }}
+                />
               ) : null}
               <Avatar sx={{ bgcolor: t.color, width: 62, height: 62, mx: 'auto', mb: 1.2, boxShadow: 2 }}>
                 {t.icon}
               </Avatar>
-              <Typography fontWeight={700} fontSize={14}>{t.label}</Typography>
+              <Typography fontWeight={700} fontSize={15}>{t.label}</Typography>
             </Paper>
           </Grid>
         ))}
       </Grid>
 
       <Typography variant="body2" color="text.secondary" align="center">
-        Tip: the round 📷 button at the bottom scans a package from anywhere in the app.
+        Tip: tap <b>Scan</b> in the bottom bar to scan a package from anywhere in the app.
       </Typography>
     </Stack>
   )

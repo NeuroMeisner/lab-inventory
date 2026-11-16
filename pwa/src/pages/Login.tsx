@@ -5,6 +5,7 @@ import { errorDetail } from '../api/client'
 import { useAuthStore } from '../store/auth'
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
+const devMode = import.meta.env.VITE_DEV_MODE === 'true'
 declare global {
   interface Window { google?: any }
 }
@@ -50,25 +51,44 @@ export default function Login() {
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
-      <Card sx={{ maxWidth: 380, width: '100%' }}>
+      <Card sx={{ maxWidth: 400, width: '100%' }}>
         <CardContent>
-          <Typography variant="h5" fontWeight={800} gutterBottom>🧪 Lab Inventory</Typography>
+          <Typography variant="h5" gutterBottom>Lab Inventory</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Sign in with your lab Google account.
           </Typography>
+
           {googleClientId ? (
             <div ref={btnRef} />
-          ) : (
+          ) : devMode ? (
             <Stack spacing={2}>
               <Alert severity="info">
-                Google OAuth is not configured yet (VITE_GOOGLE_CLIENT_ID is empty). Use development sign-in.
+                Google sign-in is not configured. Development sign-in is available.
               </Alert>
-              <TextField label="Email" value={devEmail} onChange={(e) => setDevEmail(e.target.value)} placeholder="admin@lab.test" />
-              <Button variant="contained" disabled={!devEmail.includes('@')} onClick={devLogin}>
+              <TextField
+                label="Email"
+                type="email"
+                inputProps={{ inputMode: 'email', autoComplete: 'email' }}
+                value={devEmail}
+                onChange={(e) => setDevEmail(e.target.value)}
+                placeholder="admin@lab.test"
+              />
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                disabled={!devEmail.includes('@')}
+                onClick={devLogin}
+              >
                 Dev sign-in
               </Button>
             </Stack>
+          ) : (
+            <Alert severity="error">
+              Sign-in is not configured. Contact your administrator.
+            </Alert>
           )}
+
           {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
         </CardContent>
       </Card>

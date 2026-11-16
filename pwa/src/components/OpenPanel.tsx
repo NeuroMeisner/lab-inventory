@@ -22,7 +22,9 @@ export default function OpenPanel({ pkg, onDone }: Props) {
     return (
       <Stack spacing={2}>
         <Typography>Open package <b>{pkg.display_code}</b> ({pkg.nomenclature_name})?</Typography>
-        <Button variant="contained" onClick={() => setConfirmed(true)}>Confirm opening</Button>
+        <Button variant="contained" size="large" fullWidth onClick={() => setConfirmed(true)}>
+          Confirm opening
+        </Button>
       </Stack>
     )
   }
@@ -35,19 +37,20 @@ export default function OpenPanel({ pkg, onDone }: Props) {
         onResult={async (text) => {
           const loc = parseLocationQr(text)
           if (!loc) {
-            setMessage('❌ This is not a location QR (expected LOC:...)')
+            setMessage('This is not a location QR (expected LOC:...)')
             return
           }
           try {
             await api.put(`/packages/${pkg.id}/open`, { location: loc, zone: 'in_use' })
-            setMessage(`✅ Package opened and placed at ${loc}`)
+            setMessage(`Package opened and placed at ${loc}`)
             onDone?.()
           } catch (err) {
-            setMessage(`❌ ${errorDetail(err)}`)
+            setMessage(errorDetail(err))
           }
         }}
+        onCancel={() => setConfirmed(false)}
       />
-      {message && <Alert severity={message.startsWith('❌') ? 'error' : 'success'}>{message}</Alert>}
+      {message && <Alert severity={message.startsWith('This') ? 'error' : 'success'}>{message}</Alert>}
     </Stack>
   )
 }

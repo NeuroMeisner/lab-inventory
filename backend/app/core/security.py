@@ -10,19 +10,26 @@ def _encode(payload: dict) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 
 
-def create_access_token(user_id: int, role: str) -> str:
+def create_access_token(user_id: int, role: str, token_version: int = 0) -> str:
     now = datetime.now(timezone.utc)
     return _encode({
-        "sub": str(user_id), "role": role, "type": "access",
-        "iat": now, "exp": now + timedelta(minutes=settings.access_token_ttl_minutes),
+        "sub": str(user_id),
+        "role": role,
+        "type": "access",
+        "tv": token_version,
+        "iat": now,
+        "exp": now + timedelta(minutes=settings.access_token_ttl_minutes),
     })
 
 
-def create_refresh_token(user_id: int) -> str:
+def create_refresh_token(user_id: int, token_version: int = 0) -> str:
     now = datetime.now(timezone.utc)
     return _encode({
-        "sub": str(user_id), "type": "refresh",
-        "iat": now, "exp": now + timedelta(days=settings.refresh_token_ttl_days),
+        "sub": str(user_id),
+        "type": "refresh",
+        "tv": token_version,
+        "iat": now,
+        "exp": now + timedelta(days=settings.refresh_token_ttl_days),
     })
 
 
