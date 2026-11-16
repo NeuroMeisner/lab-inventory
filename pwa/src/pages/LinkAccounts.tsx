@@ -7,11 +7,14 @@ export default function LinkAccounts() {
   const refreshMe = useAuthStore((s) => s.refreshMe)
   const linked = useAuthStore((s) => s.user?.accounts_linked)
   const [code, setCode] = useState<string | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState(600)
   const timer = useRef<number | null>(null)
 
   useEffect(() => {
     if (!code) return
+    setSecondsLeft(600)
     timer.current = window.setInterval(async () => {
+      setSecondsLeft((s) => Math.max(0, s - 1))
       try {
         await refreshMe()
       } catch { /* ignore */ }
@@ -24,23 +27,46 @@ export default function LinkAccounts() {
     setCode(data.code)
   }
 
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0')
+  const ss = String(secondsLeft % 60).padStart(2, '0')
+
   return (
     <Stack spacing={2} alignItems="center">
-      <Typography variant="h5" fontWeight={700}>🔗 Link Telegram</Typography>
+      <Typography variant="h5">Link Telegram</Typography>
+
       {linked ? (
         <Alert severity="success">Your Telegram account is already linked.</Alert>
       ) : (
-        <Card sx={{ maxWidth: 420, width: '100%' }}>
+        <Card sx={{ maxWidth: 440, width: '100%' }}>
           <CardContent>
             <Stack spacing={2} alignItems="center">
-              <Typography>1. Press the button below. 2. Open our Telegram bot. 3. Send <code>/link &lt;code&gt;</code>.</Typography>
+              <Typography align="center">
+                1. Press the button below.<br />
+                2. Open our Telegram bot.<br />
+                3. Send <code>/link &lt;code&gt;</code>.
+              </Typography>
+
               {!code ? (
-                <Button variant="contained" onClick={generate}>Generate link code</Button>
+                <Button variant="contained" size="large" fullWidth onClick={generate}>
+                  Generate link code
+                </Button>
               ) : (
                 <>
-                  <Typography sx={{ fontSize: 42, fontWeight: 800, letterSpacing: 8, fontFamily: 'monospace' }}>{code}</Typography>
-                  <Typography variant="body2" color="text.secondary">Waiting for you to enter the code in the bot… (code expires in 10 minutes)</Typography>
-                  <Button size="small" onClick={generate}>Regenerate</Button>
+                  <Typography
+                    sx={{
+                      fontSize: 42,
+                      fontWeight: 800,
+                      letterSpacing: 8,
+                      fontFamily: 'monospace',
+                      userSelect: 'all',
+                    }}
+                  >
+                    {code}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Waiting for you to enter the code in the bot… (expires in {mm}:{ss})
+                  </Typography>
+                  <Button size="large" onClick={generate}>Regenerate</Button>
                 </>
               )}
             </Stack>

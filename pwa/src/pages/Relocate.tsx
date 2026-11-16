@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert, Button, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
+import { Alert, Button, Stack, Typography } from '@mui/material'
 import { api, errorDetail } from '../api/client'
 import type { PackageInfo } from '../api/types'
 import Scanner from '../components/Scanner'
@@ -11,21 +11,22 @@ export default function Relocate() {
   const [step, setStep] = useState<Step>('scan-package')
   const [pkg, setPkg] = useState<PackageInfo | null>(null)
   const [location, setLocation] = useState<string | null>(null)
-  const [zone, setZone] = useState<'storage' | 'in_use'>('storage')
   const [message, setMessage] = useState<string | null>(null)
   const [done, setDone] = useState(0)
 
   const reset = () => { setStep('scan-package'); setPkg(null); setLocation(null); setMessage(null) }
 
+  const zone = location?.startsWith('S-') ? 'storage' : 'in_use'
+
   const onPackageScanned = async (text: string) => {
     const ref = parseDatamatrix(text)
-    if (!ref.packageId) { setMessage('❌ Not a package DataMatrix (missing package ID)'); return }
+    if (!ref.packageId) { setMessage('Not a package DataMatrix (missing package ID)'); return }
     try {
       const { data } = await api.get(`/packages/${ref.packageId}`)
       setPkg(data)
       setStep('scan-location')
       setMessage(null)
-    } catch (err) { setMessage(`❌ ${errorDetail(err)}`) }
+    } catch (err) { setMessage(errorDetail(err)) }
   }
 
   const confirm = async () => {
@@ -33,14 +34,14 @@ export default function Relocate() {
     try {
       await api.put(`/packages/${pkg.id}/location`, { location, zone })
       setDone((d) => d + 1)
-      setMessage(`✅ ${pkg.display_code} → ${location}. Scan the next package.`)
+      setMessage(`${pkg.display_code} → ${location}. Scan the next package.`)
       reset()
-    } catch (err) { setMessage(`❌ ${errorDetail(err)}`) }
+    } catch (err) { setMessage(errorDetail(err)) }
   }
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h5" fontWeight={700}>📍 Place / Move packages</Typography>
+      <Typography variant="h5">Place / Move packages</Typography>
       {done > 0 && <Alert severity="success">Processed in this session: {done}</Alert>}
 
       {step === 'scan-package' && (
@@ -60,9 +61,8 @@ export default function Relocate() {
             hint="Scan location QR (LOC:...)"
             onResult={(text) => {
               const loc = parseLocationQr(text)
-              if (!loc) { setMessage('❌ Not a location QR (expected LOC:...)'); return }
+              if (!loc) { setMessage('Not a location QR (expected LOC:...)'); return }
               setLocation(loc)
-              setZone(loc.startsWith('S-') ? 'storage' : 'in_use')
               setStep('confirm')
             }}
             onCancel={reset}
@@ -74,19 +74,24 @@ export default function Relocate() {
         <>
           <Typography variant="h6">Step 3/3 — confirm</Typography>
           <Typography><b>{pkg.location ?? '(not placed)'}</b> → <b>{location}</b></Typography>
-          <ToggleButtonGroup exclusive size="small" value={zone} onChange={(_, v) => v && setZone(v)}>
-            <ToggleButton value="storage">Storage</ToggleButton>
-            <ToggleButton value="in_use">In use</ToggleButton>
-          </ToggleButtonGroup>
-          <Stack direction="row" spacing={1}>
-            <Button variant="contained" onClick={confirm}>Confirm</Button>
-            <Button onClick={() => setStep('scan-location')}>Rescan location</Button>
-            <Button onClick={reset}>Cancel</Button>
+          <Typography variant="body2" color="text.secondary">
+            Zone (detected from the location code): <b>{zone === 'storage' ? 'Storage' : 'In use'}</b>
+          </Typography>
+          <Stack direction="column" spacing={1}>
+            <Button variant="contained" size="large" fullWidth onClick={confirm}>
+              Confirm placement
+            </Button>
+            <Button size="large" fullWidth onClick={() => setStep('scan-location')}>
+              Rescan location
+            </Button>
+            <Button size="large" fullWidth onClick={reset}>
+              Cancel
+            </Button>
           </Stack>
         </>
       )}
 
-      {message && <Alert severity={message.startsWith('❌') ? 'error' : 'success'}>{message}</Alert>}
+      {message && <Alert severity={message.startsWith('Not') ? 'error' : 'success'}>{message}</Alert>}
     </Stack>
   )
 }

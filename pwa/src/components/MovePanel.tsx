@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert, Button, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
+import { Alert, Button, Stack, Typography } from '@mui/material'
 import type { PackageInfo } from '../api/types'
 import { api, errorDetail } from '../api/client'
 import Scanner from './Scanner'
@@ -12,16 +12,18 @@ interface Props {
 
 export default function MovePanel({ pkg, onDone }: Props) {
   const [location, setLocation] = useState<string | null>(null)
-  const [zone, setZone] = useState<'storage' | 'in_use'>(pkg.location?.startsWith('S-') ? 'storage' : 'in_use')
   const [message, setMessage] = useState<string | null>(null)
 
+  const zone = location?.startsWith('S-') ? 'storage' : 'in_use'
+
   const confirm = async () => {
+    if (!location) return
     try {
       await api.put(`/packages/${pkg.id}/location`, { location, zone })
-      setMessage(`✅ Moved to ${location}`)
+      setMessage(`Moved to ${location}`)
       onDone?.()
     } catch (err) {
-      setMessage(`❌ ${errorDetail(err)}`)
+      setMessage(errorDetail(err))
     }
   }
 
@@ -33,10 +35,8 @@ export default function MovePanel({ pkg, onDone }: Props) {
           hint="Scan location QR (LOC:...)"
           onResult={(text) => {
             const loc = parseLocationQr(text)
-            if (loc) {
-              setLocation(loc)
-              setZone(loc.startsWith('S-') ? 'storage' : 'in_use')
-            } else setMessage('❌ This is not a location QR (expected LOC:...)')
+            if (loc) setLocation(loc)
+            else setMessage('This is not a location QR (expected LOC:...)')
           }}
         />
         {message && <Alert severity="error">{message}</Alert>}
@@ -50,15 +50,18 @@ export default function MovePanel({ pkg, onDone }: Props) {
       <Typography>
         <b>{pkg.location ?? 'Not placed yet'}</b> → <b>{location}</b>
       </Typography>
-      <ToggleButtonGroup exclusive size="small" value={zone} onChange={(_, v) => v && setZone(v)}>
-        <ToggleButton value="storage">Storage (warehouse)</ToggleButton>
-        <ToggleButton value="in_use">In use (lab room)</ToggleButton>
-      </ToggleButtonGroup>
-      <Stack direction="row" spacing={1}>
-        <Button variant="contained" onClick={confirm}>Confirm</Button>
-        <Button onClick={() => { setLocation(null); setMessage(null) }}>Rescan</Button>
+      <Typography variant="body2" color="text.secondary">
+        Zone (detected): <b>{zone === 'storage' ? 'Storage' : 'In use'}</b>
+      </Typography>
+      <Stack spacing={1}>
+        <Button variant="contained" size="large" fullWidth onClick={confirm}>
+          Confirm move
+        </Button>
+        <Button size="large" fullWidth onClick={() => { setLocation(null); setMessage(null) }}>
+          Rescan location
+        </Button>
       </Stack>
-      {message && <Alert severity={message.startsWith('❌') ? 'error' : 'success'}>{message}</Alert>}
+      {message && <Alert severity={message.startsWith('Moved') ? 'success' : 'error'}>{message}</Alert>}
     </Stack>
   )
 }

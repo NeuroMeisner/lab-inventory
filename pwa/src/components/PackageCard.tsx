@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { PackageInfo } from '../api/types'
 import { api } from '../api/client'
 import { isExpired } from '../utils/fefo'
+import { successFeedback } from '../utils/sound'
 
 interface Props {
   pkg: PackageInfo
@@ -19,6 +20,7 @@ export default function PackageCard({ pkg, onUpdated, currentUserId }: Props) {
   const toggleReserve = async () => {
     if (reservedByMe) await api.delete(`/packages/${pkg.id}/reserve`)
     else await api.put(`/packages/${pkg.id}/reserve`)
+    successFeedback()
     onUpdated?.()
   }
 
@@ -28,11 +30,18 @@ export default function PackageCard({ pkg, onUpdated, currentUserId }: Props) {
       : `${pkg.nominal_amount ?? ''} ${pkg.unit ?? ''}`
 
   return (
-    <Card variant="outlined" sx={{ opacity: expired ? 0.75 : 1 }}>
+    <Card
+      variant="outlined"
+      sx={{ borderColor: expired ? 'error.main' : 'divider', borderWidth: expired ? 2 : 1 }}
+    >
       <CardContent>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography fontWeight={700}>{pkg.nomenclature_name}</Typography>
-          <Typography variant="caption">{pkg.display_code}</Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+          <Typography fontWeight={700} sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {pkg.nomenclature_name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+            {pkg.display_code}
+          </Typography>
         </Stack>
         <Typography variant="body2" color="text.secondary">
           {amountText} · Batch {pkg.batch_number ?? '—'}
@@ -41,6 +50,7 @@ export default function PackageCard({ pkg, onUpdated, currentUserId }: Props) {
           {pkg.location ?? 'Not placed'} · {pkg.zone === 'storage' ? 'Storage' : 'In use'}
           {pkg.grant_code ? ` · ${pkg.grant_code} (${pkg.grant_manager ?? ''})` : ''}
         </Typography>
+
         <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: 'wrap', gap: 0.5 }}>
           {pkg.expiry_date && (
             <Chip size="small" label={`Exp ${pkg.expiry_date}`} color={expired ? 'error' : undefined} />
@@ -49,17 +59,36 @@ export default function PackageCard({ pkg, onUpdated, currentUserId }: Props) {
           {!pkg.opened_at && pkg.placement_status === 'placed' && <Chip size="small" label="Sealed" />}
           {reservedByMe && <Chip size="small" color="success" label="Reserved by you" />}
           {reservedByOther && (
-            <Chip size="small" color="warning" label={`Reserved by ${pkg.reserved_by_name ?? '…'} until ${new Date(pkg.reserved_until!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`} />
+            <Chip
+              size="small"
+              color="warning"
+              label={`Reserved by ${pkg.reserved_by_name ?? '…'} until ${new Date(pkg.reserved_until!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+            />
           )}
         </Stack>
-        <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap', gap: 1 }}>
-          <Button size="small" onClick={() => navigate(`/package/${pkg.id}?action=details`)}>Details</Button>
-          <Button size="small" variant="contained" onClick={() => navigate(`/package/${pkg.id}?action=write-off`)}>Write off</Button>
+
+        <Stack direction="row" spacing={1} sx={{ mt: 1.5, gap: 1, flexWrap: 'wrap' }}>
+          <Button
+            size="large"
+            variant="contained"
+            onClick={() => navigate(`/package/${pkg.id}?action=write-off`)}
+            sx={{ flex: 1, minWidth: 140 }}
+          >
+            Write off
+          </Button>
+          <Button size="large" onClick={() => navigate(`/package/${pkg.id}?action=details`)}>
+            Details
+          </Button>
+        </Stack>
+
+        <Stack direction="row" spacing={1} sx={{ mt: 0.5, gap: 1, flexWrap: 'wrap' }}>
           {pkg.opened_at == null && (
-            <Button size="small" onClick={() => navigate(`/package/${pkg.id}?action=open`)}>Open</Button>
+            <Button size="medium" onClick={() => navigate(`/package/${pkg.id}?action=open`)}>Open</Button>
           )}
-          <Button size="small" onClick={() => navigate(`/package/${pkg.id}?action=move`)}>Move</Button>
-          <Button size="small" onClick={toggleReserve}>{reservedByMe ? 'Cancel reserve' : 'Reserve'}</Button>
+          <Button size="medium" onClick={() => navigate(`/package/${pkg.id}?action=move`)}>Move</Button>
+          <Button size="medium" onClick={toggleReserve}>
+            {reservedByMe ? 'Cancel reserve' : 'Reserve'}
+          </Button>
         </Stack>
       </CardContent>
     </Card>

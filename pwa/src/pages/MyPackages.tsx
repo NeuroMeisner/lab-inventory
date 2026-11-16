@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Stack, Typography } from '@mui/material'
+import { Skeleton, Stack, Typography } from '@mui/material'
 import { api } from '../api/client'
 import type { PackageInfo, TransactionInfo } from '../api/types'
 import PackageCard from '../components/PackageCard'
@@ -27,9 +27,20 @@ export default function MyPackages() {
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h5" fontWeight={700}>📋 My stock (opened / used in last 30 days)</Typography>
-      {loading && <Typography>Loading…</Typography>}
-      {!loading && packages.length === 0 && <Typography color="text.secondary">Nothing yet — scan and write off something :)</Typography>}
+      <Typography variant="h5">My stock (opened / used in last 30 days)</Typography>
+
+      {loading && (
+        <Stack spacing={1}>
+          {[0, 1, 2].map((i) => <Skeleton key={i} variant="rounded" height={120} />)}
+        </Stack>
+      )}
+
+      {!loading && packages.length === 0 && (
+        <Typography color="text.secondary">
+          Nothing here yet — scan a package and write off something to see it in this list.
+        </Typography>
+      )}
+
       {packages.map((p) => <PackageCard key={p.id} pkg={p} currentUserId={user?.id} />)}
     </Stack>
   )
