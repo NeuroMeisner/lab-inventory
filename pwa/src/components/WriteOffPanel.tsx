@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Alert, Button, MenuItem, Select, Snackbar, Stack, Typography } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
 import type { PackageInfo } from '../api/types'
 import { api, errorDetail } from '../api/client'
 import { useOutboxStore } from '../store/outbox'
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function WriteOffPanel({ pkg, grants, onDone }: Props) {
+  const navigate = useNavigate()
   const [grantId, setGrantId] = useState<number | ''>('')
   const [message, setMessage] = useState<string | null>(null)
   const [severity, setSeverity] = useState<'success' | 'error' | 'warning' | 'info'>('success')
@@ -20,6 +22,7 @@ export default function WriteOffPanel({ pkg, grants, onDone }: Props) {
   const enqueue = useOutboxStore((s) => s.enqueue)
 
   const grantLabel = pkg.grant_code ? `${pkg.grant_code} (${pkg.grant_manager ?? ''})` : '—'
+  const blockedReason = pkg.opened_at == null ? 'sealed' : pkg.zone !== 'in_use' ? 'storage' : null
 
   const submit = async (value: string | null) => {
     setBusy(true)
@@ -55,6 +58,35 @@ export default function WriteOffPanel({ pkg, grants, onDone }: Props) {
   }
 
   const dismissUndo = () => setUndo(null)
+
+  if (blockedReason) {
+    return (
+      <Stack spacing={2}>
+        <Typography variant="body1">Purchase grant: <b>{grantLabel}</b></Typography>
+        {blockedReason === 'sealed' ? (
+          <>
+            <Alert severity="warning">
+              This package is <b>sealed</b>. Open it and place it in the in-use zone before writing off.
+            </Alert>
+            <Button variant="contained" size="large" fullWidth
+                    onClick={() => navigate(`/package/${pkg.id}?action=open`)}>
+              Open package
+            </Button>
+          </>
+        ) : (
+          <>
+            <Alert severity="warning">
+              This package is in <b>storage</b>. Move it to a working location (in-use zone) before writing off.
+            </Alert>
+            <Button variant="contained" size="large" fullWidth
+                    onClick={() => navigate(`/package/${pkg.id}?action=move`)}>
+              Move to in-use zone
+            </Button>
+          </>
+        )}
+      </Stack>
+    )
+  }
 
   return (
     <Stack spacing={2}>

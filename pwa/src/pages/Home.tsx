@@ -1,4 +1,4 @@
-import { Alert, Avatar, Box, Button, Chip, Grid, Paper, Stack, Typography } from '@mui/material'
+import { Alert, Avatar, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import PlaylistAddCheckRoundedIcon from '@mui/icons-material/PlaylistAddCheckRounded'
 import PlaceRoundedIcon from '@mui/icons-material/PlaceRounded'
@@ -54,43 +54,49 @@ export default function Home() {
         </Paper>
       )}
 
-      <Grid container spacing={2}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(4, minmax(0, 1fr))' },
+          gap: 2,
+          width: '100%',
+        }}
+      >
         {tiles.map((t) => (
-          <Grid item xs={6} sm={4} md={3} key={t.to}>
-            <Paper
-              onClick={() => navigate(t.to)}
-              elevation={0}
-              sx={{
-                position: 'relative',
-                minHeight: 132,
-                p: 2,
-                borderRadius: 4,
-                textAlign: 'center',
-                cursor: 'pointer',
-                border: '1px solid',
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
-                transition: 'transform 0.12s ease, box-shadow 0.12s ease',
-                '&:hover': { transform: 'translateY(-3px)', boxShadow: 5 },
-                '&:active': { transform: 'scale(0.97)' },
-              }}
-            >
-              {'badge' in t && t.badge ? (
-                <Chip
-                  size="small"
-                  color="secondary"
-                  label={t.badge}
-                  sx={{ position: 'absolute', top: 10, right: 10, fontWeight: 700 }}
-                />
-              ) : null}
-              <Avatar sx={{ bgcolor: t.color, width: 62, height: 62, mx: 'auto', mb: 1.2, boxShadow: 2 }}>
-                {t.icon}
-              </Avatar>
-              <Typography fontWeight={700} fontSize={15}>{t.label}</Typography>
-            </Paper>
-          </Grid>
+          <Paper
+            key={t.to}
+            onClick={() => navigate(t.to)}
+            elevation={0}
+            sx={{
+              position: 'relative',
+              minHeight: 132,
+              p: 2,
+              borderRadius: 4,
+              textAlign: 'center',
+              cursor: 'pointer',
+              border: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
+              transition: 'transform 0.12s ease, box-shadow 0.12s ease',
+              '&:hover': { transform: 'translateY(-3px)', boxShadow: 5 },
+              '&:active': { transform: 'scale(0.97)' },
+            }}
+          >
+            {'badge' in t && t.badge ? (
+              <Chip
+                size="small"
+                color="secondary"
+                label={t.badge}
+                sx={{ position: 'absolute', top: 10, right: 10, fontWeight: 700 }}
+              />
+            ) : null}
+            <Avatar sx={{ bgcolor: t.color, width: 62, height: 62, mx: 'auto', mb: 1.2, boxShadow: 2 }}>
+              {t.icon}
+            </Avatar>
+            <Typography fontWeight={700} fontSize={15}>{t.label}</Typography>
+          </Paper>
         ))}
-      </Grid>
+      </Box>
 
       <Typography variant="body2" color="text.secondary" align="center">
         Tip: tap <b>Scan</b> in the bottom bar to scan a package from anywhere in the app.

@@ -77,6 +77,28 @@ async def apply_write_off(
 ) -> Package:
     pkg = await get_package_or_404(db, package_id)
     nom = pkg.nomenclature
+    old_location = pkg.location
+
+    # Списание только из вскрытой упаковки в зоне использования (ТЗ)
+    if pkg.opened_at is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Package is sealed. Open it first (Open package), then write off.",
+        )
+    if pkg.zone != "in_use":
+        raise HTTPException(
+            status_code=409,
+            detail="Write-off is allowed only from the in-use zone. Move the package to a working location first.",
+        )
+        # Запрет «перемещения» в то же самое место и ту же зону
+    if (
+        pkg.placement_status == "placed"
+        and payload.location == old_location
+        and (payload.zone is None or payload.zone.value == pkg.zone)
+    ):
+        raise HTTPException(status_code=409, detail="Package is already at this location")
+
+    pkg.location = payload.location
 
     if nom.tracking_mode == "per_unit":
         if amount is None or amount <= 0:
@@ -251,7 +273,8 @@ async def update_location(
         from_location=old_location, to_location=payload.location,
     ))
     await db.commit()
-    return serialize_package(await get_package_or_404(db, package_id))
+    await db.refresh(pkg)
+    return serialize_package(pkg)
 
 
 @router.put("/{package_id}/open", response_model=PackageOut)
@@ -276,7 +299,8 @@ async def open_package(
         comment="Package opened",
     ))
     await db.commit()
-    return serialize_package(await get_package_or_404(db, package_id))
+    await db.refresh(pkg)
+    return serialize_package(pkg)
 
 
 @router.put("/{package_id}/reserve", response_model=PackageOut)
@@ -292,7 +316,8 @@ async def reserve_package(package_id: int, db: AsyncSession = Depends(get_db), u
         comment=f"Reserved for {settings.reserve_minutes} minutes",
     ))
     await db.commit()
-    return serialize_package(await get_package_or_404(db, package_id))
+    await db.refresh(pkg)
+    return serialize_package(pkg)
 
 
 @router.delete("/{package_id}/reserve", response_model=PackageOut)
@@ -306,7 +331,8 @@ async def cancel_reservation(package_id: int, db: AsyncSession = Depends(get_db)
     pkg.reserved_until = None
     db.add(Transaction(package_id=pkg.id, user_id=user.id, type="unreserve", comment="Reservation cancelled"))
     await db.commit()
-    return serialize_package(await get_package_or_404(db, package_id))
+    await db.refresh(pkg)
+    return serialize_package(pkg)
 
 
 @router.post("/{package_id}/write-off", response_model=PackageOut)
@@ -320,4 +346,5 @@ async def write_off(
     await db.commit()
     grant_id = payload.grant_id if payload.grant_id is not None else pkg.grant_id
     await handle_low_stock(db, pkg.nomenclature_id, user.id, grant_id)
-    return serialize_package(await get_package_or_404(db, package_id))
+    await db.refresh(pkg)
+    return serialize_package(pkg)

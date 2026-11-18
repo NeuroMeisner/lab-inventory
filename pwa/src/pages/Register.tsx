@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
-  Alert, Autocomplete, Button, Card, CardContent, Checkbox, Divider, FormControlLabel,
-  Grid, MenuItem, Skeleton, Stack, TextField, Typography,
+  Alert, Autocomplete, Box, Button, Card, CardContent, Checkbox, Divider, FormControlLabel,
+  Grid, MenuItem, Stack, TextField, Typography,
 } from '@mui/material'
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
