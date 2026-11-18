@@ -47,10 +47,15 @@ async def login_google(payload: GoogleAuthRequest, db: AsyncSession = Depends(ge
     user = (await db.execute(select(User).where(User.google_email == email))).scalar_one_or_none()
     if user is None:
         role = "admin" if email in settings.google_admin_emails_list else "user"
-        user = User(google_email=email, full_name=full_name, role=role)
+        user = User(
+            google_email=email, full_name=full_name, role=role,
+            is_active=True, token_version=0,
+        )
         db.add(user)
-    if not user.is_active:
+        await db.flush()
+    elif user.is_active is False:
         raise HTTPException(status_code=403, detail="Account is deactivated")
+
     await db.commit()
     await db.refresh(user)
     return _issue_tokens(user)
@@ -60,7 +65,7 @@ async def login_google(payload: GoogleAuthRequest, db: AsyncSession = Depends(ge
 async def refresh_tokens(payload: RefreshRequest, db: AsyncSession = Depends(get_db)):
     data = decode_token(payload.refresh_token, expected_type="refresh")
     user = await db.get(User, int(data["sub"]))
-    if user is None or not user.is_active:
+    if user is None or user.is_active is False:
         raise HTTPException(status_code=401, detail="User not found or inactive")
     if data.get("tv", 0) != user.token_version:
         raise HTTPException(status_code=401, detail="Token revoked")
@@ -75,6 +80,6 @@ async def login_telegram(payload: TelegramAuthRequest, request: Request, db: Asy
     user = (await db.execute(select(User).where(User.telegram_id == telegram_id))).scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=404, detail="Telegram account is not linked. Use the /link command in the bot.")
-    if not user.is_active:
+    if user.is_active is False:
         raise HTTPException(status_code=403, detail="Account is deactivated")
     return _issue_tokens(user)

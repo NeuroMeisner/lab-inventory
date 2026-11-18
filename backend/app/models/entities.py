@@ -28,7 +28,7 @@ class User(Base):
     default_grant_id: Mapped[int | None] = mapped_column(ForeignKey("grants.id"))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=func.true())
     accounts_linked: Mapped[bool] = mapped_column(Boolean, default=False, server_default=func.false())
-    token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default='0')
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     deactivation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     deactivated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     pii_removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -94,7 +94,6 @@ class Transaction(Base):
     amount: Mapped[float | None] = mapped_column(Numeric(10, 3))
     from_location: Mapped[str | None] = mapped_column(String(50))
     to_location: Mapped[str | None] = mapped_column(String(50))
-    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     comment: Mapped[str | None] = mapped_column(Text)
 
@@ -105,7 +104,7 @@ class PurchaseOrder(Base):
     __tablename__ = "purchase_orders"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nomenclature_id: Mapped[int | None] = mapped_column(ForeignKey("nomenclature.id"))
+    nomenclature_id: Mapped[int | None] = mapped_column(ForeignKey("nomenclature.id"), nullable=True)
     name_temp: Mapped[str | None] = mapped_column(String(255))
     expected_quantity: Mapped[float | None] = mapped_column(Numeric(10, 3))
     expected_date: Mapped[date | None] = mapped_column(Date)
@@ -131,6 +130,7 @@ class AuditLog(Base):
     old_value: Mapped[str | None] = mapped_column(Text)
     new_value: Mapped[str | None] = mapped_column(Text)
     changed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
