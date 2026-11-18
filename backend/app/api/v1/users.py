@@ -3,14 +3,15 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_admin
 from app.config import settings
+from app.core.net import client_ip
 from app.core.telegram import resolve_telegram_identity
 from app.database import get_db
-from app.models import AccountLinkCode, AuditLog, Nomenclature, Package, Role, Transaction, User
+from app.models import AccountLinkCode, AuditLog, LinkAttempt, Nomenclature, Package, Role, Transaction, User
 from app.schemas import FrequentItem, FrequentOut, LinkCodeOut, LinkTelegramRequest, LinkTelegramResult, UserOut
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -66,11 +67,46 @@ async def create_link_code(db: AsyncSession = Depends(get_db), user: User = Depe
     return LinkCodeOut(code=code, expires_at=expires_at)
 
 
+# ---------- Защита кода связки от перебора ----------
+async def _link_rate_guard(db: AsyncSession, telegram_id: int | None, ip: str) -> None:
+    now = datetime.now(timezone.utc)
+    fails = await db.scalar(
+        select(func.count()).select_from(LinkAttempt).where(
+            LinkAttempt.ts >= now - timedelta(minutes=15),
+            LinkAttempt.success.is_(False),
+            or_(LinkAttempt.ip == ip, LinkAttempt.telegram_id == telegram_id),
+        )
+    )
+    if (fails or 0) >= 10:
+        raise HTTPException(status_code=429, detail="Too many failed link attempts. Try again in 15 minutes.")
+    per_ip = await db.scalar(
+        select(func.count()).select_from(LinkAttempt).where(
+            LinkAttempt.ts >= now - timedelta(minutes=1), LinkAttempt.ip == ip,
+        )
+    )
+    if (per_ip or 0) >= 20:
+        raise HTTPException(status_code=429, detail="Too many link attempts from this address.")
+    per_tg = await db.scalar(
+        select(func.count()).select_from(LinkAttempt).where(
+            LinkAttempt.ts >= now - timedelta(minutes=1), LinkAttempt.telegram_id == telegram_id,
+        )
+    )
+    if (per_tg or 0) >= 5:
+        raise HTTPException(status_code=429, detail="Too many link attempts from this Telegram account.")
+
+
+def _record_attempt(db: AsyncSession, telegram_id: int | None, ip: str, success: bool) -> None:
+    db.add(LinkAttempt(telegram_id=telegram_id, ip=ip, success=success))
+
+
 @router.post("/link-telegram", response_model=LinkTelegramResult)
 async def link_telegram(payload: LinkTelegramRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    ip = client_ip(request)
     telegram_id = await resolve_telegram_identity(
         payload.init_data, payload.telegram_id, request.headers.get("X-Bot-Secret")
     )
+    await _link_rate_guard(db, telegram_id, ip)
+
     row = (await db.execute(
         select(AccountLinkCode).where(
             AccountLinkCode.code == payload.code,
@@ -78,23 +114,30 @@ async def link_telegram(payload: LinkTelegramRequest, request: Request, db: Asyn
         )
     )).scalar_one_or_none()
     if row is None:
+        _record_attempt(db, telegram_id, ip, False)
+        await db.commit()
         raise HTTPException(status_code=404, detail="Link code is invalid or expired")
 
     user = await db.get(User, row.user_id)
     if user is None or not user.is_active:
+        _record_attempt(db, telegram_id, ip, False)
+        await db.commit()
         raise HTTPException(status_code=403, detail="Account is deactivated")
+
     other = (await db.execute(
         select(User).where(User.telegram_id == telegram_id, User.id != user.id)
     )).scalar_one_or_none()
     if other is not None:
+        _record_attempt(db, telegram_id, ip, False)
+        await db.commit()
         raise HTTPException(status_code=409, detail="This Telegram account is already linked to another user")
 
     user.telegram_id = telegram_id
     user.accounts_linked = True
     await db.delete(row)
+    _record_attempt(db, telegram_id, ip, True)
     await db.commit()
     return LinkTelegramResult(linked=True, user_id=user.id, full_name=user.full_name)
-
 
 @router.get("/frequent", response_model=FrequentOut)
 async def frequent_items(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):

@@ -141,3 +141,12 @@ class AccountLinkCode(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+class LinkAttempt(Base):
+    __tablename__ = "link_attempts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger)
+    ip: Mapped[str | None] = mapped_column(String(45))
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    success: Mapped[bool] = mapped_column(Boolean, default=False, server_default=func.false())

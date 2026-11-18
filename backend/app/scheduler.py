@@ -4,6 +4,7 @@ from typing import Awaitable, Callable
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -165,6 +166,10 @@ def start_scheduler() -> AsyncIOScheduler | None:
     scheduler.add_job(_job(check_expiry), "cron", hour=6, minute=0, id="check_expiry")
     scheduler.add_job(_job(notify_pending_placement), "interval", hours=1, id="notify_pending_placement")
     scheduler.add_job(_job(notify_overdue_orders), "cron", hour=6, minute=10, id="notify_overdue_orders")
+    async def cleanup_link_attempts(session: AsyncSession) -> None:
+        """Раз в сутки удалять записи попыток связки старше 24 часов."""
+        await session.execute(text("DELETE FROM link_attempts WHERE ts < NOW() - INTERVAL '24 hours'"))
+    scheduler.add_job(_job(cleanup_link_attempts), "cron", hour=3, minute=0, id="cleanup_link_attempts")
     scheduler.start()
     logger.info("Scheduler started (5 jobs)")
     return scheduler

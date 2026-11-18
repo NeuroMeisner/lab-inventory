@@ -6,5 +6,5 @@ from .entities import (
 
 __all__ = [
     "Base", "PlacementStatus", "PurchaseOrderStatus", "Role", "TrackingMode", "TransactionType", "Zone",
-    "AccountLinkCode", "AuditLog", "Grant", "Nomenclature", "Package", "PurchaseOrder", "Transaction", "User",
+    "AccountLinkCode", "AuditLog", "Grant", "Nomenclature", "Package", "PurchaseOrder", "Transaction", "User", "LinkAttempt",
 ]
