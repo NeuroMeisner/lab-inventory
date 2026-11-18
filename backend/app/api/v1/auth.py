@@ -1,3 +1,5 @@
+import ipaddress
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +14,32 @@ from app.schemas import GoogleAuthRequest, RefreshRequest, TelegramAuthRequest, 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _client_ip(request: Request) -> str:
+    xff = request.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else ""
+
+
+def _ip_allowed(ip: str, patterns: list[str]) -> bool:
+    if not patterns or not ip:
+        return False
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    for p in patterns:
+        try:
+            if "/" in p:
+                if addr in ipaddress.ip_network(p, strict=False):
+                    return True
+            elif addr == ipaddress.ip_address(p):
+                return True
+        except ValueError:
+            continue
+    return False
+
+
 def _issue_tokens(user: User) -> TokenPair:
     return TokenPair(
         access_token=create_access_token(user.id, user.role, user.token_version),
@@ -21,9 +49,19 @@ def _issue_tokens(user: User) -> TokenPair:
 
 
 @router.post("/google", response_model=TokenPair)
-async def login_google(payload: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
+async def login_google(payload: GoogleAuthRequest, request: Request, db: AsyncSession = Depends(get_db)):
     if settings.dev_mode and payload.credential.startswith("dev:"):
+        if not settings.dev_mode_allowed_ips_list or not settings.dev_mode_allowed_emails_list:
+            raise HTTPException(
+                status_code=503,
+                detail="DEV_MODE is on but not restricted. Set DEV_MODE_ALLOWED_IPS and DEV_MODE_ALLOWED_EMAILS.",
+            )
+        ip = _client_ip(request)
+        if not _ip_allowed(ip, settings.dev_mode_allowed_ips_list):
+            raise HTTPException(status_code=403, detail=f"Development sign-in is not allowed from this address ({ip})")
         email = payload.credential[4:].strip().lower()
+        if email not in settings.dev_mode_allowed_emails_list:
+            raise HTTPException(status_code=403, detail="Development sign-in is not allowed for this email")
         full_name = email.split("@")[0].replace(".", " ").title()
     else:
         if not settings.google_client_id:
@@ -47,14 +85,11 @@ async def login_google(payload: GoogleAuthRequest, db: AsyncSession = Depends(ge
     user = (await db.execute(select(User).where(User.google_email == email))).scalar_one_or_none()
     if user is None:
         role = "admin" if email in settings.google_admin_emails_list else "user"
-        user = User(
-            google_email=email, full_name=full_name, role=role,
-            is_active=True, token_version=0,
-        )
+        user = User(google_email=email, full_name=full_name, role=role, is_active=True, token_version=0)
         db.add(user)
         await db.flush()
     elif user.is_active is False:
-        raise HTTPException(status_code=403, detail="Account is deactivated")
+        raise HTTPException(status_code=403, detail="Account is deactivated. Contact your lab administrator.")
 
     await db.commit()
     await db.refresh(user)
@@ -81,5 +116,5 @@ async def login_telegram(payload: TelegramAuthRequest, request: Request, db: Asy
     if user is None:
         raise HTTPException(status_code=404, detail="Telegram account is not linked. Use the /link command in the bot.")
     if user.is_active is False:
-        raise HTTPException(status_code=403, detail="Account is deactivated")
+        raise HTTPException(status_code=403, detail="Account is deactivated. Contact your lab administrator.")
     return _issue_tokens(user)

@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     access_token_ttl_minutes: int = 60
     refresh_token_ttl_days: int = 30
     dev_mode: bool = False
+    dev_mode_allowed_ips: str = ""
+    dev_mode_allowed_emails: str = ""
     google_client_id: str = ""
     google_admin_emails: str = ""
 
@@ -36,6 +38,14 @@ class Settings(BaseSettings):
     @cached_property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @cached_property
+    def dev_mode_allowed_ips_list(self) -> list[str]:
+        return [x.strip() for x in self.dev_mode_allowed_ips.split(",") if x.strip()]
+
+    @cached_property
+    def dev_mode_allowed_emails_list(self) -> list[str]:
+        return [x.strip().lower() for x in self.dev_mode_allowed_emails.split(",") if x.strip()]
 
 
 settings = Settings()

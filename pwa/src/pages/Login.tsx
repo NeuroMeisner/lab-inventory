@@ -3,22 +3,27 @@ import { Alert, Box, Button, Card, CardContent, Stack, TextField, Typography } f
 import { useNavigate } from 'react-router-dom'
 import { errorDetail } from '../api/client'
 import { useAuthStore } from '../store/auth'
+import { useServerMeta } from '../hooks/useServerMeta'
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
-const devMode = import.meta.env.VITE_DEV_MODE === 'true'
+
 declare global {
   interface Window { google?: any }
 }
 
 export default function Login() {
   const navigate = useNavigate()
+  const meta = useServerMeta()
   const loginGoogle = useAuthStore((s) => s.loginGoogle)
   const [error, setError] = useState<string | null>(null)
   const [devEmail, setDevEmail] = useState('')
   const btnRef = useRef<HTMLDivElement>(null)
 
+  const devMode = meta ? meta.dev_mode : import.meta.env.VITE_DEV_MODE === 'true'
+  const hasGoogle = meta ? meta.google_configured : !!googleClientId
+
   useEffect(() => {
-    if (!googleClientId) return
+    if (!googleClientId || !hasGoogle) return
     let tries = 0
     const timer = setInterval(() => {
       if (window.google?.accounts?.id && btnRef.current) {
@@ -38,7 +43,7 @@ export default function Login() {
       } else if (++tries > 50) clearInterval(timer)
     }, 200)
     return () => clearInterval(timer)
-  }, [loginGoogle, navigate])
+  }, [loginGoogle, navigate, hasGoogle])
 
   const devLogin = async () => {
     try {
@@ -58,12 +63,13 @@ export default function Login() {
             Sign in with your lab Google account.
           </Typography>
 
-          {googleClientId ? (
+          {hasGoogle ? (
             <div ref={btnRef} />
           ) : devMode ? (
             <Stack spacing={2}>
-              <Alert severity="info">
-                Google sign-in is not configured. Development sign-in is available.
+              <Alert severity="error">
+                <b>DEVELOPMENT MODE</b> — Google sign-in is not connected. Not for real work.
+                Sign-in is restricted to allowed addresses and emails.
               </Alert>
               <TextField
                 label="Email"

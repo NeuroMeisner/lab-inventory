@@ -16,6 +16,7 @@ import { api } from '../api/client'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import { useOutboxStore } from '../store/outbox'
+import { useServerMeta } from '../hooks/useServerMeta'
 
 const NAV_ITEMS = [
   { label: 'Home', icon: <HomeIcon />, value: '/' },
@@ -31,6 +32,7 @@ export default function Layout() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const outboxCount = useOutboxStore((s) => s.items.length)
+  const meta = useServerMeta()
   const lastError = useOutboxStore((s) => s.lastError)
   const [online, setOnline] = useState(navigator.onLine)
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
@@ -96,6 +98,12 @@ export default function Layout() {
           </Menu>
         </Toolbar>
       </AppBar>
+
+      {meta?.dev_mode && (
+        <Alert severity="error" square sx={{ borderRadius: 0, fontWeight: 700 }}>
+          DEVELOPMENT MODE — Google sign-in is not connected. Not for real work.
+        </Alert>
+      )}
 
       {!online && (
         <Alert severity="warning" square sx={{ borderRadius: 0 }}>

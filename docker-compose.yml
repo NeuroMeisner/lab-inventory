@@ -39,6 +39,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://lab:lab@db:5432/lab
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       DEV_MODE: ${DEV_MODE:-false}
+      DEV_MODE_ALLOWED_IPS: ${DEV_MODE_ALLOWED_IPS:-}
+      DEV_MODE_ALLOWED_EMAILS: ${DEV_MODE_ALLOWED_EMAILS:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_ADMIN_EMAILS: ${GOOGLE_ADMIN_EMAILS:-admin@lab.test}
       BOT_TOKEN: ${BOT_TOKEN:-}
