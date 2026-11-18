@@ -15,18 +15,12 @@ async def get_current_user(
 ) -> User:
     if credentials is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
-
     data = decode_token(credentials.credentials, "access")
     user = await db.get(User, int(data["sub"]))
-
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
-
-    # ✅ Отзыв токенов: если token_version изменилась — токен больше не действителен
-    token_tv = data.get("tv", 0)
-    if token_tv != user.token_version:
+    if data.get("tv", 0) != user.token_version:
         raise HTTPException(status_code=401, detail="Token revoked")
-
     return user
 
 

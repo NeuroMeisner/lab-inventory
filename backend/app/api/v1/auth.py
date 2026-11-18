@@ -24,16 +24,12 @@ def _issue_tokens(user: User) -> TokenPair:
 async def login_google(payload: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
     if settings.dev_mode and payload.credential.startswith("dev:"):
         email = payload.credential[4:].strip().lower()
-        full_name = payload.credential[4:].split("@")[0].replace(".", " ").title()
+        full_name = email.split("@")[0].replace(".", " ").title()
     else:
         if not settings.google_client_id:
-            raise HTTPException(
-                status_code=503,
-                detail="Google OAuth is not configured (GOOGLE_CLIENT_ID missing)",
-            )
+            raise HTTPException(status_code=503, detail="Google OAuth is not configured (GOOGLE_CLIENT_ID missing)")
         from google.auth.transport import requests as google_requests
         from google.oauth2 import id_token as google_id_token
-
         try:
             info = google_id_token.verify_token(
                 payload.credential, google_requests.Request(), audience=settings.google_client_id
@@ -53,11 +49,10 @@ async def login_google(payload: GoogleAuthRequest, db: AsyncSession = Depends(ge
         role = "admin" if email in settings.google_admin_emails_list else "user"
         user = User(google_email=email, full_name=full_name, role=role)
         db.add(user)
-
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is deactivated")
-
     await db.commit()
+    await db.refresh(user)
     return _issue_tokens(user)
 
 
@@ -65,15 +60,10 @@ async def login_google(payload: GoogleAuthRequest, db: AsyncSession = Depends(ge
 async def refresh_tokens(payload: RefreshRequest, db: AsyncSession = Depends(get_db)):
     data = decode_token(payload.refresh_token, expected_type="refresh")
     user = await db.get(User, int(data["sub"]))
-
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
-
-    # ✅ Проверка token_version в refresh-токене
-    token_tv = data.get("tv", 0)
-    if token_tv != user.token_version:
+    if data.get("tv", 0) != user.token_version:
         raise HTTPException(status_code=401, detail="Token revoked")
-
     return _issue_tokens(user)
 
 
@@ -84,11 +74,7 @@ async def login_telegram(payload: TelegramAuthRequest, request: Request, db: Asy
     )
     user = (await db.execute(select(User).where(User.telegram_id == telegram_id))).scalar_one_or_none()
     if user is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Telegram account is not linked. Use the /link command in the bot.",
-        )
+        raise HTTPException(status_code=404, detail="Telegram account is not linked. Use the /link command in the bot.")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is deactivated")
-
     return _issue_tokens(user)

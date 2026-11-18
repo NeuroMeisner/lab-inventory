@@ -12,6 +12,7 @@ import CategoryIcon from '@mui/icons-material/Category'
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'
 import LogoutIcon from '@mui/icons-material/Logout'
 import LinkIcon from '@mui/icons-material/Link'
+import { api } from '../api/client'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import { useOutboxStore } from '../store/outbox'
@@ -80,6 +81,14 @@ export default function Layout() {
             <Divider />
             <MenuItem onClick={() => { setMenuAnchor(null); navigate('/link-telegram') }}>
               <ListItemIcon><LinkIcon fontSize="small" /></ListItemIcon> Link Telegram
+            </MenuItem>
+            <MenuItem onClick={async () => {
+              setMenuAnchor(null)
+              try { await api.post('/users/me/logout-all') } catch { /* сессия уже невалидна */ }
+              logout()
+              navigate('/login')
+            }}>
+              <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon> Log out everywhere
             </MenuItem>
             <MenuItem onClick={() => { setMenuAnchor(null); logout(); navigate('/login') }}>
               <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon> Logout

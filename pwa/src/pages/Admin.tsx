@@ -33,6 +33,8 @@ export default function Admin() {
   const [txFilter, setTxFilter] = useState({ date_from: '', date_to: '', type: '' })
   const [users, setUsers] = useState<User[]>([])
   const [roleConfirm, setRoleConfirm] = useState<{ user: User; newRole: 'admin' | 'user' } | null>(null)
+  const [deactConfirm, setDeactConfirm] = useState<User | null>(null)
+  const [deactReason, setDeactReason] = useState('')
   const [grants, setGrants] = useState<Grant[]>([])
   const [grantForm, setGrantForm] = useState({ code: '', manager_name: '', expiry_date: '' })
   const [report, setReport] = useState<{ grantId: string; from: string; to: string; items: any[] }>({ grantId: '', from: '', to: '', items: [] })
@@ -132,6 +134,25 @@ export default function Admin() {
       await api.put(`/users/${roleConfirm.user.id}/role`, { role: roleConfirm.newRole })
       showMsg('Role updated')
       setRoleConfirm(null)
+      loadUsers()
+    } catch (err) { showMsg(errorDetail(err), 'error') }
+  }
+
+  const confirmDeactivate = async () => {
+    if (!deactConfirm) return
+    try {
+      await api.put(`/users/${deactConfirm.id}/deactivate`, { reason: deactReason.trim() })
+      showMsg('Account deactivated. All sessions revoked.')
+      setDeactConfirm(null)
+      setDeactReason('')
+      loadUsers()
+    } catch (err) { showMsg(errorDetail(err), 'error') }
+  }
+
+  const reactivateUser = async (u: User) => {
+    try {
+      await api.put(`/users/${u.id}/reactivate`)
+      showMsg('Account reactivated')
       loadUsers()
     } catch (err) { showMsg(errorDetail(err), 'error') }
   }
@@ -246,7 +267,23 @@ export default function Admin() {
                 </TableCell>
                 <TableCell>{u.telegram_id ?? '—'}</TableCell>
                 <TableCell>{u.accounts_linked ? 'Yes' : '—'}</TableCell>
-                <TableCell>{u.is_active ? 'Active' : 'Disabled'}</TableCell>
+                <TableCell>
+                  <Stack spacing={0.5}>
+                    <Typography variant="body2">{u.is_active ? 'Active' : 'Disabled'}</Typography>
+                    {u.is_active ? (
+                      <Button
+                        size="small"
+                        color="error"
+                        disabled={u.id === user?.id}
+                        onClick={() => { setDeactConfirm(u); setDeactReason('') }}
+                      >
+                        Deactivate
+                      </Button>
+                    ) : (
+                      <Button size="small" onClick={() => reactivateUser(u)}>Reactivate</Button>
+                    )}
+                  </Stack>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -315,6 +352,42 @@ export default function Admin() {
           )}
         </Stack>
       )}
+
+      <Dialog open={!!deactConfirm} onClose={() => setDeactConfirm(null)} fullWidth>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Deactivate account
+          <IconButton onClick={() => setDeactConfirm(null)} size="small" aria-label="close"><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Alert severity="warning">
+              <b>{deactConfirm?.full_name ?? deactConfirm?.google_email}</b> will lose access immediately.
+              The account and all history are kept for accountability.
+            </Alert>
+            <TextField
+              label="Reason *"
+              multiline
+              minRows={2}
+              value={deactReason}
+              onChange={(e) => setDeactReason(e.target.value)}
+              helperText="Required (min 3 characters). Recorded in the audit log."
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button size="large" onClick={() => setDeactConfirm(null)}>Cancel</Button>
+          <Button
+            size="large"
+            color="error"
+            variant="contained"
+            disabled={deactReason.trim().length < 3}
+            onClick={confirmDeactivate}
+          >
+            Deactivate
+          </Button>
+        </DialogActions>
+      </Dialog>
+
 
       {/* Подтверждение смены роли */}
       <Dialog open={!!roleConfirm} onClose={() => setRoleConfirm(null)}>

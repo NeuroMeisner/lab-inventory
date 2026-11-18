@@ -32,6 +32,9 @@ export interface Nomenclature {
   manufacturer_code: string | null
   nomenclature_code: string
   created_at: string
+  deactivated_at: string | null
+  deactivation_reason: string | null
+  pii_removed_at: string | null
 }
 
 export interface PackageInfo {

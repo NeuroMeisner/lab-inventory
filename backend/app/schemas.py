@@ -40,6 +40,9 @@ class UserOut(BaseModel):
     is_active: bool
     accounts_linked: bool
     created_at: datetime
+    deactivated_at: datetime | None = None
+    deactivation_reason: str | None = None
+    pii_removed_at: datetime | None = None
 
 
 class LinkCodeOut(BaseModel):
