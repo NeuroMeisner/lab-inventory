@@ -75,13 +75,9 @@ export default function Register() {
   const previewLabel = async () => {
     if (!created) return
     try {
-      const internalSecret = import.meta.env.VITE_INTERNAL_API_SECRET || ''
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (internalSecret) headers['X-Internal-Secret'] = internalSecret
-
       const resp = await fetch(`${CODEGEN_URL}/render/package-label`, {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: labelData(), dpi: 200 }),
       })
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`)

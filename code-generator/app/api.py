@@ -105,7 +105,7 @@ KNOWN_MODELS = ["QL-500", "QL-550", "QL-580", "QL-600", "QL-650TD", "QL-700", "Q
 
 
 @router.get("/printers", response_model=PrintersInfo)
-def printers(_: None = Depends(require_secret)):
+def printers():
     return PrintersInfo(
         configured=bool(settings.printer_address),
         model=settings.printer_model,
@@ -117,7 +117,7 @@ def printers(_: None = Depends(require_secret)):
 
 
 @router.post("/print", response_model=PrintResult)
-def print_label(payload: PrintRequest, _: None = Depends(require_secret)):
+def print_label(payload: PrintRequest):
     # 1. Рендер этикетки
     try:
         if payload.label_type == "package":
