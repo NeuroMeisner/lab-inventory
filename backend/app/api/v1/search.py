@@ -11,7 +11,10 @@ router = APIRouter(tags=["search"])
 
 SEARCH_SQL = text("""
     WITH stock AS (
-        SELECT nomenclature_id, COUNT(*) AS cnt, COALESCE(SUM(current_amount), 0) AS amt
+        SELECT nomenclature_id,
+               COUNT(*) FILTER (WHERE expiry_date IS NULL OR expiry_date >= CURRENT_DATE) AS cnt,
+               COALESCE(SUM(current_amount) FILTER (WHERE expiry_date IS NULL OR expiry_date >= CURRENT_DATE), 0) AS amt,
+               COALESCE(SUM(current_amount) FILTER (WHERE expiry_date < CURRENT_DATE), 0) AS expired_amt
         FROM packages
         WHERE placement_status = 'placed'
         GROUP BY nomenclature_id
@@ -20,6 +23,7 @@ SEARCH_SQL = text("""
            n.storage_temp, n.nomenclature_code,
            COALESCE(s.cnt, 0) AS packages_available,
            COALESCE(s.amt, 0) AS total_amount,
+           COALESCE(s.expired_amt, 0) AS expired_amount,
            (
              CASE WHEN n.name ILIKE '%' || :q || '%' THEN 3 ELSE 0 END
              + CASE WHEN to_tsvector('english', n.name) @@ websearch_to_tsquery('english', :q) THEN 2 ELSE 0 END
@@ -40,7 +44,7 @@ SEARCH_SQL = text("""
 @router.get("/search", response_model=list[SearchResultItem])
 async def search(
     q: str = Query(min_length=1),
-    limit: int = Query(default=20, le=100),
+    limit: int = Query(default=20, le=50),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):

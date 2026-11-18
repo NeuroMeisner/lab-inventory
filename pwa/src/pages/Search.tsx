@@ -139,6 +139,7 @@ export default function Search() {
             <Typography variant="body2" color="text.secondary">
               {r.category} · {r.unit}{r.cas_number ? ` · CAS ${r.cas_number}` : ''} · available: {r.packages_available} pkgs
               {r.total_amount > 0 ? ` (${r.total_amount} ${r.unit})` : ''}
+              {r.expired_amount > 0 && ` · expired: ${r.expired_amount} ${r.unit}`}
             </Typography>
           </Box>
         ))}

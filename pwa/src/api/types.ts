@@ -123,6 +123,7 @@ export interface SearchResult {
   nomenclature_code: string
   packages_available: number
   total_amount: number
+  expired_amount: number
 }
 
 export interface FrequentItem {

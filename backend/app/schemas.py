@@ -314,6 +314,7 @@ class SearchResultItem(BaseModel):
     nomenclature_code: str
     packages_available: int
     total_amount: Decimal
+    expired_amount: Decimal
 
 
 class ConsumptionItem(BaseModel):
