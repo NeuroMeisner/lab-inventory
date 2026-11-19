@@ -89,7 +89,7 @@ async def login_google(payload: GoogleAuthRequest, request: Request, db: AsyncSe
         db.add(user)
         await db.flush()
     elif user.is_active is False:
-        raise HTTPException(status_code=403, detail="Account is deactivated. Contact your lab administrator.")
+        raise HTTPException(status_code=403, detail="Account is deactivated. Contact your lab administrator for access restoration or data deletion requests.")
 
     await db.commit()
     await db.refresh(user)
@@ -116,5 +116,5 @@ async def login_telegram(payload: TelegramAuthRequest, request: Request, db: Asy
     if user is None:
         raise HTTPException(status_code=404, detail="Telegram account is not linked. Use the /link command in the bot.")
     if user.is_active is False:
-        raise HTTPException(status_code=403, detail="Account is deactivated. Contact your lab administrator.")
+        raise HTTPException(status_code=403, detail="Account is deactivated. Contact your lab administrator for access restoration or data deletion requests.")
     return _issue_tokens(user)

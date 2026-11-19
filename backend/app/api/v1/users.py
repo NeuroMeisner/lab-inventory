@@ -33,12 +33,13 @@ async def _revoke_sessions(db: AsyncSession, user: User) -> None:
 
 @router.get("", response_model=list[UserOut])
 async def list_users(
-    include_inactive: bool = True,
+    include_inactive: bool = False,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_admin),
+    user: User = Depends(get_current_user),
 ):
+    """Список пользователей. Админы видят всех (с фильтром), остальные — только активных."""
     stmt = select(User).order_by(User.id)
-    if not include_inactive:
+    if user.role != "admin" or not include_inactive:
         stmt = stmt.where(User.is_active.is_(True))
     rows = (await db.execute(stmt)).scalars().all()
     return [UserOut.model_validate(u) for u in rows]
@@ -240,3 +241,55 @@ async def reactivate_user(
     await db.commit()
     await db.refresh(target)
     return UserOut.model_validate(target)
+
+class AnonymizeRequest(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+@router.post("/{user_id}/anonymize", response_model=UserOut)
+async def anonymize_user(
+    user_id: int,
+    payload: AnonymizeRequest,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Удаление PII по запросу субъекта данных (GDPR/152-ФЗ). История транзакций сохраняется."""
+    target = await db.get(User, user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.id == admin.id:
+        raise HTTPException(status_code=400, detail="You cannot anonymize your own account")
+    if target.pii_removed_at is not None:
+        raise HTTPException(status_code=409, detail="PII already removed")
+
+    # Сохраняем старые значения для аудита
+    old_email = target.google_email
+    old_telegram = target.telegram_id
+    old_name = target.full_name
+
+    # Удаляем PII
+    target.google_email = None
+    target.telegram_id = None
+    target.full_name = f"Deleted user #{target.id}"
+    target.is_active = False
+    target.pii_removed_at = datetime.now(timezone.utc)
+    target.token_version = (target.token_version or 0) + 1
+
+    _audit(db, target.id, "pii_removed", None, "PII anonymized", admin.id, payload.reason)
+    db.add(AuditLog(
+        entity_type="user", entity_id=target.id, field_name="google_email",
+        old_value=old_email, new_value="NULL", changed_by_id=admin.id, reason=payload.reason,
+    ))
+    db.add(AuditLog(
+        entity_type="user", entity_id=target.id, field_name="telegram_id",
+        old_value=str(old_telegram) if old_telegram else None, new_value="NULL",
+        changed_by_id=admin.id, reason=payload.reason,
+    ))
+    db.add(AuditLog(
+        entity_type="user", entity_id=target.id, field_name="full_name",
+        old_value=old_name, new_value=target.full_name, changed_by_id=admin.id, reason=payload.reason,
+    ))
+
+    await db.commit()
+    await db.refresh(target)
+    return UserOut.model_validate(target)    

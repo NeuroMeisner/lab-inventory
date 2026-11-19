@@ -169,7 +169,27 @@ def start_scheduler() -> AsyncIOScheduler | None:
     async def cleanup_link_attempts(session: AsyncSession) -> None:
         """Раз в сутки удалять записи попыток связки старше 24 часов."""
         await session.execute(text("DELETE FROM link_attempts WHERE ts < NOW() - INTERVAL '24 hours'"))
+    async def cleanup_old_deactivated_users(session: AsyncSession) -> None:
+        """Раз в сутки удалять PII деактивированных пользователей старше 5 лет."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=5*365)
+        result = await session.execute(
+            select(User).where(
+                User.is_active.is_(False),
+                User.deactivated_at < cutoff,
+                User.pii_removed_at.is_(None),
+            )
+        )
+        users = result.scalars().all()
+        for user in users:
+            user.google_email = None
+            user.telegram_id = None
+            user.full_name = f"Deleted user #{user.id}"
+            user.pii_removed_at = datetime.now(timezone.utc)
+            user.token_version = (user.token_version or 0) + 1
+        if users:
+            await session.commit()
     scheduler.add_job(_job(cleanup_link_attempts), "cron", hour=3, minute=0, id="cleanup_link_attempts")
+    scheduler.add_job(_job(cleanup_old_deactivated_users), "cron", hour=4, minute=0, id="cleanup_old_deactivated_users")    
     scheduler.start()
     logger.info("Scheduler started (5 jobs)")
     return scheduler

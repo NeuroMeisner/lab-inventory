@@ -34,6 +34,8 @@ export default function Admin() {
   const [users, setUsers] = useState<User[]>([])
   const [roleConfirm, setRoleConfirm] = useState<{ user: User; newRole: 'admin' | 'user' } | null>(null)
   const [deactConfirm, setDeactConfirm] = useState<User | null>(null)
+  const [anonymizeConfirm, setAnonymizeConfirm] = useState<User | null>(null)
+  const [anonymizeReason, setAnonymizeReason] = useState('')
   const [deactReason, setDeactReason] = useState('')
   const [grants, setGrants] = useState<Grant[]>([])
   const [grantForm, setGrantForm] = useState({ code: '', manager_name: '', expiry_date: '' })
@@ -153,6 +155,17 @@ export default function Admin() {
     try {
       await api.put(`/users/${u.id}/reactivate`)
       showMsg('Account reactivated')
+      loadUsers()
+    } catch (err) { showMsg(errorDetail(err), 'error') }
+  }
+
+  const confirmAnonymize = async () => {
+    if (!anonymizeConfirm) return
+    try {
+      await api.post(`/users/${anonymizeConfirm.id}/anonymize`, { reason: anonymizeReason.trim() })
+      showMsg('PII removed. Account anonymized, history preserved.')
+      setAnonymizeConfirm(null)
+      setAnonymizeReason('')
       loadUsers()
     } catch (err) { showMsg(errorDetail(err), 'error') }
   }
@@ -280,7 +293,19 @@ export default function Admin() {
                         Deactivate
                       </Button>
                     ) : (
-                      <Button size="small" onClick={() => reactivateUser(u)}>Reactivate</Button>
+                      <Stack spacing={0.5}>
+                        <Button size="small" onClick={() => reactivateUser(u)}>Reactivate</Button>
+                        {u.pii_removed_at == null && (
+                          <Button
+                            size="small"
+                            color="warning"
+                            disabled={u.id === user?.id}
+                            onClick={() => { setAnonymizeConfirm(u); setAnonymizeReason('') }}
+                          >
+                            Remove PII
+                          </Button>
+                        )}
+                      </Stack>
                     )}
                   </Stack>
                 </TableCell>
@@ -388,6 +413,45 @@ export default function Admin() {
         </DialogActions>
       </Dialog>
 
+      <Dialog open={!!anonymizeConfirm} onClose={() => setAnonymizeConfirm(null)} fullWidth>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Remove personal data (GDPR/152-FZ)
+          <IconButton onClick={() => setAnonymizeConfirm(null)} size="small" aria-label="close"><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Alert severity="warning">
+              <b>{anonymizeConfirm?.full_name ?? anonymizeConfirm?.google_email}</b> will be anonymized:
+              <ul>
+                <li>Email, Telegram ID, and full name will be removed</li>
+                <li>Account will be permanently deactivated</li>
+                <li>Transaction history (write-offs, moves) will be preserved for accountability</li>
+                <li>This action cannot be undone</li>
+              </ul>
+            </Alert>
+            <TextField
+              label="Reason *"
+              multiline
+              minRows={2}
+              value={anonymizeReason}
+              onChange={(e) => setAnonymizeReason(e.target.value)}
+              helperText="Required (min 3 characters). Recorded in audit log."
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button size="large" onClick={() => setAnonymizeConfirm(null)}>Cancel</Button>
+          <Button
+            size="large"
+            color="warning"
+            variant="contained"
+            disabled={anonymizeReason.trim().length < 3}
+            onClick={confirmAnonymize}
+          >
+            Remove PII
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Подтверждение смены роли */}
       <Dialog open={!!roleConfirm} onClose={() => setRoleConfirm(null)}>
